@@ -1,147 +1,255 @@
 grammar Smoola;
-    program:
-        mainClass (classDeclaration)* EOF
+	@members{
+	   void print(Object obj){
+	        System.out.println(obj);
+	   }
+	}
+
+	@header {
+		import ast.node.Program;
+		import ast.node.declaration.*;
+		import ast.node.expression.*;
+	}
+
+	program:
+		program1 {print($program1.synthesized_type.toString());}
+	;
+    program1 returns [Program synthesized_type]:
+        {$synthesized_type = new Program();} mainClass {$synthesized_type.setMainClass($mainClass.synthesized_type);} (classDeclaration {$synthesized_type.addClass($classDeclaration.synthesized_type);})* EOF
     ;
-    mainClass:
+    mainClass returns [ClassDeclaration synthesized_type]:
         // name should be checked later
-        'class' ID '{' 'def' ID '(' ')' ':' 'int' '{'  statements 'return' expression ';' '}' '}'
+        'class' name = ID '{' 'def' ID '(' ')' ':' 'int' '{'  statements 'return' expression ';' '}' '}' 
+		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), null);}
     ;
-    classDeclaration:
-        'class' ID ('extends' ID)? '{' (varDeclaration)* (methodDeclaration)* '}'
+    classDeclaration returns [ClassDeclaration synthesized_type]:
+        'class' name = ID ('extends' father_name = ID)? 
+		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), new Identifier((($father_name != null) ? $father_name.getText() : "")));}
+		'{' (varDeclaration{$synthesized_type.addVarDeclaration($varDeclaration.synthesized_type);})* 
+		(methodDeclaration{$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type;)})* '}' 
+		
     ;
-    varDeclaration:
-        'var' ID ':' type ';'
+    varDeclaration returns [varDeclaration synthesized_type]:
+        'var' ID ':' type ';' 
+		{$synthesized_type = new varDeclaration(new Identifier($ID.getText()),$type.synthesized_type);}
     ;
-    methodDeclaration:
-        'def' ID ('(' ')' | ('(' ID ':' type (',' ID ':' type)* ')')) ':' type '{'  varDeclaration* statements 'return' expression ';' '}'
+    methodDeclaration returns [MethodDeclaration synthesized_type]:
+        'def' name = ID {$synthesized_type = new MethodDeclaration($name.getText());}
+		('(' ')' | ('(' n1 = ID ':' t1 = type {$synthesized_type.addArg(new varDeclaration(new Identifier($n1.getText(),$t1.synthesized_type)));}
+		(',' n2 = ID ':' t2 = type{$synthesized_type.addArg(new varDeclaration(new Identifier($n2.getText(),$t2.synthesized_type)));})* ')'))
+		':' t3 = type {$synthesized_type.setReturnType($t3.synthesized_type);} '{'  
+		(varDeclaration {$synthesized_type.addLocalVar($varDeclaration.synthesized_type);})* 
+		statements 
+		{
+			$synthesized_type.addStatement($statements.synthesized_type);
+		}
+		'return' expression ';' '}'
     ;
-    statements:
-        (statement)*
+    statements returns [Block synthesized_type]:
+        {$synthesized_type = new Block();} (statement {$synthesized_type.addStatement($statement.synthesized_type);})*
     ;
-    statement:
-        statementBlock |
-        statementCondition |
-        statementLoop |
-        statementWrite |
+    statement returns [Statement synthesized_type]:
+        statementBlock 
+		{
+			$synthesized_type = $statementBlock.synthesized_type;
+		} |
+        statementCondition
+		{
+			$synthesized_type = $statementCondition.synthesized_type;
+		} |
+        statementLoop
+		{
+			$synthesized_type = $statementLoop.synthesized_type;
+		} |
+        statementWrite
+		{
+			$synthesized_type = $statementWrite.synthesized_type;
+		} |
         statementAssignment
+		{
+			$synthesized_type = $statementAssignment.synthesized_type;
+		}
     ;
-    statementBlock:
-        '{'  statements '}'
+    statementBlock returns [Block synthesized_type]:
+        '{' statements{ $synthesized_type = $statements.synthesized_type; } '}'
     ;
-    statementCondition:
-        'if' '('expression')' 'then' statement ('else' statement)?
+    statementCondition returns [Conditional synthesized_type]:
+        'if' '('expression')' 'then' s1 = statement 
+		{
+			$synthesized_type = new Conditional($expression.synthesized_type, $s1.synthesized_type);
+		}
+		('else' statement 
+		{$synthesized_type.setAlternativeBody($statement.synthesized_type);}
+		)?
     ;
-    statementLoop:
-        'while' '(' expression ')' statement
+    statementLoop returns [While synthesized_type]:
+        'while' '(' expression ')' statement 
+		{$synthesized_type = new While($expression.synthesized_type,$statement.synthesized_type);}
     ;
-    statementWrite:
-        'writeln(' expression ')' ';'
+    statementWrite returns [Write synthesized_type]:
+        'writeln(' expression ')' ';' 
+		{$synthesized_type = new Write($expression.synthesized_type);} 
     ;
-    statementAssignment:
-        expression ';'
+    statementAssignment returns [Assign synthesized_type]:
+        expression ';' 
+		//{$synthesized_type}
     ;
 
-    expression:
-		expressionAssignment
+    expression returns [Expression synthesized_type]:
+		expressionAssignment {$synthesized_type = $expressionAssignment.synthesized_type;}
 	;
 
-    expressionAssignment:
-		expressionOr '=' expressionAssignment
-	    |	expressionOr
+    expressionAssignment returns [Expression synthesized_type]:
+		expressionOr '=' expressionAssignment 
+		{$synthesized_type = new Assign($expressionOr.synthesized_type,$expressionAssignment.synthesized_type);}
+	    |	expressionOr {$synthesized_type = $expressionOr.synthesized_type;}
 	;
 
-    expressionOr:
-		expressionAnd expressionOrTemp
+    expressionOr returns [Expression synthesized_type]:
+		expressionAnd expressionOrTemp[$expressionAnd.synthesized_type] 
+		{$synthesized_type = $expressionOrTemp.synthesized_type;}
 	;
 
-    expressionOrTemp:
-		'||' expressionAnd expressionOrTemp
-	    |
+    expressionOrTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		'||' expressionAnd expressionOrTemp[$expressionAnd.synthesized_type] 
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionOrTemp.synthesized_type,BinaryOperator.or);}
+	    | {$synthesized_type = $inherited_type;}
 	;
 
-    expressionAnd:
-		expressionEq expressionAndTemp
+    expressionAnd returns [Expression synthesized_type]:
+		expressionEq expressionAndTemp[$expressionEq.synthesized_type]
+		{$synthesized_type = $expressionAndTemp.synthesized_type;}
 	;
 
-    expressionAndTemp:
-		'&&' expressionEq expressionAndTemp
-	    |
+    expressionAndTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		'&&' expressionEq expressionAndTemp[$expressionEq.synthesized_type]
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionAndTemp.synthesized_type,BinaryOperator.and);}
+	    | {$synthesized_type = $inherited_type;}
 	;
 
-    expressionEq:
-		expressionCmp expressionEqTemp
+    expressionEq returns [Expression synthesized_type]:
+		expressionCmp expressionEqTemp[$expressionCmp.synthesized_type] 
+		{$synthesized_type = $expressionEqTemp.synthesized_type;}
 	;
 
-    expressionEqTemp:
-		('==' | '<>') expressionCmp expressionEqTemp
-	    |
+    expressionEqTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		op = ('==' | '<>') expressionCmp expressionEqTemp[$expressionCmp.synthesized_type]
+		{$synthesized_type = ((op == "==") ? new BinaryExpression($inherited_type,$expressionEqTemp.synthesized_type,BinaryOperator.eq) :
+		(op == "<>") ? new BinaryExpression($inherited_type,$expressionEqTemp.synthesized_type,BinaryOperator.neq) : null); } 
+	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionCmp:
-		expressionAdd expressionCmpTemp
+    expressionCmp returns [Expression synthesized_type]:
+		expressionAdd expressionCmpTemp[$expressionAdd.synthesized_type]
+		{$synthesized_type = $expressionCmpTemp.synthesized_type;}
 	;
 
-    expressionCmpTemp:
-		('<' | '>') expressionAdd expressionCmpTemp
-	    |
+    expressionCmpTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		op = ('<' | '>') expressionAdd expressionCmpTemp [$expressionAdd.synthesized_type]
+		{$synthesized_type = ((op == "<") ? new BinaryExpression($inherited_type,$expressionCmpTemp.synthesized_type,BinaryOperator.lt) :
+		(op == ">") ? new BinaryExpression($inherited_type,$expressionCmpTemp.synthesized_type,BinaryOperator.gt) : null); } 
+	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionAdd:
-		expressionMult expressionAddTemp
+    expressionAdd returns [Expression synthesized_type]:
+		expressionMult expressionAddTemp[$expressionMult.synthesized_type]
+		{$synthesized_type = $expressionAddTemp.synthesized_type;}
 	;
 
-    expressionAddTemp:
-		('+' | '-') expressionMult expressionAddTemp
-	    |
+    expressionAddTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		op = ('+' | '-') expressionMult expressionAddTemp[$expressionMult.synthesized_type]
+		{$synthesized_type = ((op == "+") ? new BinaryExpression($inherited_type,$expressionAddTemp.synthesized_type,BinaryOperator.add) :
+		(op == "-") ? new BinaryExpression($inherited_type,$expressionAddTemp.synthesized_type,BinaryOperator.sub) : null); } 
+	    | {$synthesized_type = $inherited_type;} 
 	;
 
-        expressionMult:
-		expressionUnary expressionMultTemp
+        expressionMult returns [Expression synthesized_type]:
+		expressionUnary expressionMultTemp[$expressionUnary.synthesized_type]
+		{$synthesized_type = $expressionMultTemp.synthesized_type;}
 	;
 
-    expressionMultTemp:
-		('*' | '/') expressionUnary expressionMultTemp
-	    |
+    expressionMultTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		op = ('*' | '/') expressionUnary expressionMultTemp[$expressionUnary.synthesized_type]
+		{$synthesized_type = ((op == "*") ? new BinaryExpression($inherited_type,$expressionMultTemp.synthesized_type,BinaryOperator.mult) :
+		(op == "/") ? new BinaryExpression($inherited_type,$expressionMultTemp.synthesized_type,BinaryOperator.div) : null); } 
+	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionUnary:
-		('!' | '-') expressionUnary
-	    |	expressionMem
+    expressionUnary returns [Expression synthesized_type]:
+		op = ('!' | '-') expressionUnary 
+		{
+			$synthesized_type = ( (op == "!") ? new UnaryExpression(UnaryOperator.not,$expressionUnary.synthesized_type) :
+			(op == "-") ? new UnaryExpression(UnaryOperator.minus,$expressionUnary.synthesized_type) : null) ;
+		}
+	    |	expressionMem {$synthesized_type = $expressionMem.synthesized_type;}
 	;
 
-    expressionMem:
-		expressionMethods expressionMemTemp
+    expressionMem returns [Expression synthesized_type]:
+		expressionMethods expressionMemTemp[$expressionMethods.synthesized_type]
+		{$synthesized_type = $expressionMemTemp.synthesized_type;}
 	;
 
-    expressionMemTemp:
-		'[' expression ']'
-	    |
+    expressionMemTemp [Expression inherited_type] returns [Expression synthesized_type]:
+		'[' expression ']' 
+		{$synthesized_type = new ArrayCall($inherited_type,$expression.synthesized_type);}
+	    | {$synthesized_type = $inherited_type;}
 	;
-	expressionMethods:
-	    expressionOther expressionMethodsTemp
+	expressionMethods returns [Expression synthesized_type]:
+	    expressionOther expressionMethodsTemp[$expressionOther.synthesized_type]
+		{$synthesized_type = $expressionMethodsTemp.synthesized_type;}
 	;
-	expressionMethodsTemp:
-	    '.' (ID '(' ')' | ID '(' (expression (',' expression)*) ')' | 'length') expressionMethodsTemp
-	    |
+	expressionMethodsTemp [Expression inherited_type] returns [Expression synthesized_type]:
+	    '.' (ID '(' ')' 
+		{
+			$synthesized_type = new MethodCall($inherited_type,new Identifier($ID.getText()));
+		}
+		| ID 
+		{
+			$synthesized_type = new MethodCall($inherited_type,new Identifier($ID.getText()));
+		}
+		'(' (expression
+		{
+			$synthesized_type.addArg($expression.synthesized_type);
+		} 
+		(',' expression
+		{
+			$synthesized_type.addArg($expression.synthesized_type);
+		})*
+		) ')' | 'length'
+		{
+			$synthesized_type = new Length($inherited_type);
+		})
+		expressionMethodsTemp[$synthesized_type]
+		{
+			$synthesized_type = $expressionMethodsTemp.synthesized_type;
+		}
+	    | {$synthesized_type = $inherited_type;}
 	;
-    expressionOther:
-		CONST_NUM
-        |	CONST_STR
-        |   'new ' 'int' '[' CONST_NUM ']'
+    expressionOther returns [Expression synthesized_type]:
+		CONST_NUM {$synthesized_type = new IntValue(Integer.parseInt($CONST_NUM.getText()), new IntType());}
+        |	CONST_STR {$synthesized_type = new StringValue($CONST_STR.getText(),new StringType());}
+        |   'new ' 'int' '[' expression ']' 
+		{
+			$synthesized_type = new NewArray();
+			$synthesized_type.setExpression($expression.synthesized_type);
+		}
         |   'new ' ID '(' ')'
-        |   'this'
-        |   'true'
-        |   'false'
-        |	ID
+		{
+			$synthesized_type = new NewClass(new Identifier($ID.getText()));
+		}
+        |   'this' {$synthesized_type = new This();}
+        |   t = 'true' {$synthesized_type = new BooleanValue(Boolean.parseBoolean($t.getText()),new BooleanType());}
+        |   f = 'false' {$synthesized_type = new BooleanValue(Boolean.parseBoolean($f.getText()),new BooleanType());}
+        |	ID 
         |   ID '[' expression ']'
         |	'(' expression ')'
 	;
-	type:
-	    'int' |
-	    'boolean' |
-	    'string' |
-	    'int' '[' ']' |
-	    ID
+	type returns[Type synthesized_type]:
+	    'int' {$synthesized_type = new IntType();}|
+	    'boolean' {$synthesized_type = new BooleanType();}|
+	    'string' {$synthesized_type = new StringType();}|
+	    'int' '[' ']' {$synthesized_type = new ArrayType();}|
+	    ID {$synthesized_type = new UserDefinedType();$synthesized_type.setName($ID.getText());} // Class declration? 
 	;
     CONST_NUM:
 		[0-9]+
