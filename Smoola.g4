@@ -6,6 +6,7 @@ grammar Smoola;
 	}
 
 	@header {
+		import ast.*;
 		import ast.node.Program;
 		import ast.node.declaration.*;
 		import ast.node.expression.*;
@@ -18,7 +19,10 @@ grammar Smoola;
 	}
 
 	program:
-		program1 {print($program1.synthesized_type.toString());}
+		program1 {
+				VisitorImpl visitor = new VisitorImpl();
+				$program1.synthesized_type.accept(visitor);
+				}
 	;
     program1 returns [Program synthesized_type]:
         {$synthesized_type = new Program();} mainClass {$synthesized_type.setMainClass($mainClass.synthesized_type);} (classDeclaration {$synthesized_type.addClass($classDeclaration.synthesized_type);})* EOF
