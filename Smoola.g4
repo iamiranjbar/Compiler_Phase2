@@ -241,8 +241,11 @@ grammar Smoola;
         |   t = 'true' {$synthesized_type = new BooleanValue(Boolean.parseBoolean($t.getText()),new BooleanType());}
         |   f = 'false' {$synthesized_type = new BooleanValue(Boolean.parseBoolean($f.getText()),new BooleanType());}
         |	ID 
-        |   ID '[' expression ']'
+		{$synthesized_type = new Identifier($ID.getText());}
+        |   ID '[' expression ']' 
+		{$synthesized_type = new ArrayCall(new Identifier($ID.getText()),$expression.synthesized_type);}
         |	'(' expression ')'
+		{$synthesized_type = $expression.synthesized_type;}
 	;
 	type returns[Type synthesized_type]:
 	    'int' {$synthesized_type = new IntType();}|
