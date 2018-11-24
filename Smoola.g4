@@ -9,6 +9,12 @@ grammar Smoola;
 		import ast.node.Program;
 		import ast.node.declaration.*;
 		import ast.node.expression.*;
+		import ast.node.expression.Value.*;
+		import ast.node.statement.*;
+		import ast.Type.*;
+		import ast.Type.ArrayType.*;
+		import ast.Type.PrimitiveType.*;
+		import ast.Type.UserDefinedType.*;
 	}
 
 	program:
@@ -26,18 +32,18 @@ grammar Smoola;
         'class' name = ID ('extends' father_name = ID)? 
 		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), new Identifier((($father_name != null) ? $father_name.getText() : "")));}
 		'{' (varDeclaration{$synthesized_type.addVarDeclaration($varDeclaration.synthesized_type);})* 
-		(methodDeclaration{$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type;)})* '}' 
+		(methodDeclaration{$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type);})* '}' 
 		
     ;
-    varDeclaration returns [varDeclaration synthesized_type]:
+    varDeclaration returns [VarDeclaration synthesized_type]:
         'var' ID ':' type ';' 
-		{$synthesized_type = new varDeclaration(new Identifier($ID.getText()),$type.synthesized_type);}
+		{$synthesized_type = new VarDeclaration(new Identifier($ID.getText()),$type.synthesized_type);}
     ;
     methodDeclaration returns [MethodDeclaration synthesized_type]:
-        'def' name = ID {$synthesized_type = new MethodDeclaration($name.getText());}
-		('(' ')' | ('(' n1 = ID ':' t1 = type {$synthesized_type.addArg(new varDeclaration(new Identifier($n1.getText(),$t1.synthesized_type)));}
-		(',' n2 = ID ':' t2 = type{$synthesized_type.addArg(new varDeclaration(new Identifier($n2.getText(),$t2.synthesized_type)));})* ')'))
-		':' t3 = type {$synthesized_type.setReturnType($t3.synthesized_type);} '{'  
+        'def' name = ID {$synthesized_type = new MethodDeclaration(new Identifier($name.getText()));}
+		('(' ')' | ('(' n1 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n1.getText()),$type.synthesized_type));}
+		(',' n2 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n2.getText()),$type.synthesized_type));})* ')'))
+		':' type {$synthesized_type.setReturnType($type.synthesized_type);} '{'  
 		(varDeclaration {$synthesized_type.addLocalVar($varDeclaration.synthesized_type);})* 
 		statements 
 		{
@@ -92,7 +98,7 @@ grammar Smoola;
     ;
     statementAssignment returns [Assign synthesized_type]:
         expression ';' 
-		//{$synthesized_type}
+		{$synthesized_type = new Assign(((BinaryExpression)$expression.synthesized_type).getLeft(),((BinaryExpression)$expression.synthesized_type).getRight());}
     ;
 
     expression returns [Expression synthesized_type]:
@@ -101,7 +107,7 @@ grammar Smoola;
 
     expressionAssignment returns [Expression synthesized_type]:
 		expressionOr '=' expressionAssignment 
-		{$synthesized_type = new Assign($expressionOr.synthesized_type,$expressionAssignment.synthesized_type);}
+		{$synthesized_type = new BinaryExpression($expressionOr.synthesized_type,$expressionAssignment.synthesized_type,BinaryOperator.assign);}
 	    |	expressionOr {$synthesized_type = $expressionOr.synthesized_type;}
 	;
 
@@ -133,9 +139,8 @@ grammar Smoola;
 	;
 
     expressionEqTemp [Expression inherited_type] returns [Expression synthesized_type]:
-		op = ('==' | '<>') expressionCmp expressionEqTemp[$expressionCmp.synthesized_type]
-		{$synthesized_type = ((op == "==") ? new BinaryExpression($inherited_type,$expressionEqTemp.synthesized_type,BinaryOperator.eq) :
-		(op == "<>") ? new BinaryExpression($inherited_type,$expressionEqTemp.synthesized_type,BinaryOperator.neq) : null); } 
+		{BinaryOperator b;}('=='{b = BinaryOperator.eq;}|'<>'{b = BinaryOperator.neq;}) expressionCmp expressionEqTemp[$expressionCmp.synthesized_type]
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionEqTemp.synthesized_type,b);} 
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
@@ -145,9 +150,8 @@ grammar Smoola;
 	;
 
     expressionCmpTemp [Expression inherited_type] returns [Expression synthesized_type]:
-		op = ('<' | '>') expressionAdd expressionCmpTemp [$expressionAdd.synthesized_type]
-		{$synthesized_type = ((op == "<") ? new BinaryExpression($inherited_type,$expressionCmpTemp.synthesized_type,BinaryOperator.lt) :
-		(op == ">") ? new BinaryExpression($inherited_type,$expressionCmpTemp.synthesized_type,BinaryOperator.gt) : null); } 
+		{BinaryOperator b;}('<'{b = BinaryOperator.lt;} | '>'{b = BinaryOperator.gt;}) expressionAdd expressionCmpTemp [$expressionAdd.synthesized_type]
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionCmpTemp.synthesized_type,b);}
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
@@ -157,9 +161,8 @@ grammar Smoola;
 	;
 
     expressionAddTemp [Expression inherited_type] returns [Expression synthesized_type]:
-		op = ('+' | '-') expressionMult expressionAddTemp[$expressionMult.synthesized_type]
-		{$synthesized_type = ((op == "+") ? new BinaryExpression($inherited_type,$expressionAddTemp.synthesized_type,BinaryOperator.add) :
-		(op == "-") ? new BinaryExpression($inherited_type,$expressionAddTemp.synthesized_type,BinaryOperator.sub) : null); } 
+		{BinaryOperator b;}('+'{b = BinaryOperator.add;} | '-'{b = BinaryOperator.sub;}) expressionMult expressionAddTemp[$expressionMult.synthesized_type]
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionAddTemp.synthesized_type,b);}
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
@@ -169,18 +172,14 @@ grammar Smoola;
 	;
 
     expressionMultTemp [Expression inherited_type] returns [Expression synthesized_type]:
-		op = ('*' | '/') expressionUnary expressionMultTemp[$expressionUnary.synthesized_type]
-		{$synthesized_type = ((op == "*") ? new BinaryExpression($inherited_type,$expressionMultTemp.synthesized_type,BinaryOperator.mult) :
-		(op == "/") ? new BinaryExpression($inherited_type,$expressionMultTemp.synthesized_type,BinaryOperator.div) : null); } 
+		{BinaryOperator b;}('*'{b = BinaryOperator.mult;} | '/'{b = BinaryOperator.div;}) expressionUnary expressionMultTemp[$expressionUnary.synthesized_type]
+		{$synthesized_type = new BinaryExpression($inherited_type,$expressionMultTemp.synthesized_type,b);}
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
     expressionUnary returns [Expression synthesized_type]:
-		op = ('!' | '-') expressionUnary 
-		{
-			$synthesized_type = ( (op == "!") ? new UnaryExpression(UnaryOperator.not,$expressionUnary.synthesized_type) :
-			(op == "-") ? new UnaryExpression(UnaryOperator.minus,$expressionUnary.synthesized_type) : null) ;
-		}
+		{UnaryOperator u;} ('!'{u = UnaryOperator.not;} | '-'{u = UnaryOperator.minus;}) expressionUnary 
+		{ $synthesized_type = new UnaryExpression(u,$expressionUnary.synthesized_type);}
 	    |	expressionMem {$synthesized_type = $expressionMem.synthesized_type;}
 	;
 
@@ -209,11 +208,11 @@ grammar Smoola;
 		}
 		'(' (expression
 		{
-			$synthesized_type.addArg($expression.synthesized_type);
+			((MethodCall)$synthesized_type).addArg($expression.synthesized_type);
 		} 
 		(',' expression
 		{
-			$synthesized_type.addArg($expression.synthesized_type);
+			((MethodCall)$synthesized_type).addArg($expression.synthesized_type);
 		})*
 		) ')' | 'length'
 		{
@@ -231,7 +230,7 @@ grammar Smoola;
         |   'new ' 'int' '[' expression ']' 
 		{
 			$synthesized_type = new NewArray();
-			$synthesized_type.setExpression($expression.synthesized_type);
+			((NewArray)$synthesized_type).setExpression($expression.synthesized_type);
 		}
         |   'new ' ID '(' ')'
 		{
@@ -252,7 +251,7 @@ grammar Smoola;
 	    'boolean' {$synthesized_type = new BooleanType();}|
 	    'string' {$synthesized_type = new StringType();}|
 	    'int' '[' ']' {$synthesized_type = new ArrayType();}|
-	    ID {$synthesized_type = new UserDefinedType();$synthesized_type.setName($ID.getText());} // Class declration? 
+	    ID {$synthesized_type = new UserDefinedType();((UserDefinedType)$synthesized_type).setName(new Identifier($ID.getText()));} // Class declration? 
 	;
     CONST_NUM:
 		[0-9]+
