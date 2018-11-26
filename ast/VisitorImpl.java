@@ -28,6 +28,10 @@ public class VisitorImpl implements Visitor {
     public void visit(ClassDeclaration classDeclaration) {
         //TODO: implement appropriate visit functionality
         System.out.println(classDeclaration.toString());
+        System.out.println(classDeclaration.getName().toString());
+        if (classDeclaration.getParentName() != null) {
+            System.out.println(classDeclaration.getParentName().toString());
+        }
         for (int i = 0; i < classDeclaration.getVarDeclarations().size(); ++i) {
         	classDeclaration.getVarDeclarations().get(i).accept(this);
         }
@@ -41,6 +45,7 @@ public class VisitorImpl implements Visitor {
     public void visit(MethodDeclaration methodDeclaration) {
         //TODO: implement appropriate visit functionality
         System.out.println(methodDeclaration.toString());
+        System.out.println(methodDeclaration.getName().toString());
         for (int i = 0; i < methodDeclaration.getArgs().size(); ++i) {
         	methodDeclaration.getArgs().get(i).accept(this);
         }
@@ -49,7 +54,7 @@ public class VisitorImpl implements Visitor {
         	methodDeclaration.getLocalVars().get(i).accept(this);
         }
 
-        for (int i = 0; i < methodDeclaration.getBody().size(); ++i) {
+        for (int i = 0; (methodDeclaration.getBody()!=null) && (i < methodDeclaration.getBody().size()); ++i) {
         	methodDeclaration.getBody().get(i).accept(this);
         }
         if (methodDeclaration.getReturnValue() != null) {
@@ -61,6 +66,7 @@ public class VisitorImpl implements Visitor {
     public void visit(VarDeclaration varDeclaration) {
         //TODO: implement appropriate visit functionality
         System.out.println(varDeclaration.toString());
+        System.out.println(varDeclaration.getIdentifier().toString());
     }
 
     @Override
@@ -105,6 +111,9 @@ public class VisitorImpl implements Visitor {
         if (methodCall.getInstance() != null) {
             methodCall.getInstance().accept(this);   
         }
+        if (methodCall.getMethodName() != null) {
+            methodCall.getMethodName().accept(this);   
+        }
         for (int i = 0; i < methodCall.getArgs().size(); ++i) {
         	methodCall.getArgs().get(i).accept(this);
         }
@@ -123,6 +132,9 @@ public class VisitorImpl implements Visitor {
     public void visit(NewClass newClass) {
         //TODO: implement appropriate visit functionality
         System.out.println(newClass.toString());
+        if (newClass.getClassName() != null) {
+            newClass.getClassName().accept(this);   
+        }
     }
 
     @Override
@@ -171,9 +183,11 @@ public class VisitorImpl implements Visitor {
     @Override
     public void visit(Block block) {
         //TODO: implement appropriate visit functionality
-        System.out.println(block.toString());
-        for (int i = 0; i < block.getBody().size(); ++i) {
-        	block.getBody().get(i).accept(this);
+        if (block != null){
+            System.out.println(block.toString());
+            for (int i = 0; i < block.getBody().size(); ++i) {
+                block.getBody().get(i).accept(this);
+            }
         }
     }
 

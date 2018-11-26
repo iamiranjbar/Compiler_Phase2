@@ -29,12 +29,22 @@ grammar Smoola;
     ;
     mainClass returns [ClassDeclaration synthesized_type]:
         // name should be checked later
-        'class' name = ID '{' 'def' ID '(' ')' ':' 'int' '{'  statements 'return' expression ';' '}' '}' 
-		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), null);}
+        'class' name = ID 
+		{
+			$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), null);
+		}
+		'{' 'def' mainMethod = ID '(' ')' ':' 'int' '{'  statements 'return' expression ';' '}' '}'
+		{
+			MethodDeclaration b = new MethodDeclaration(new Identifier($mainMethod.getText()));
+			b.setReturnType(new IntType());
+			b.addStatement($statements.synthesized_type);
+			b.setReturnValue($expression.synthesized_type);
+			$synthesized_type.addMethodDeclaration(b);
+		}
     ;
     classDeclaration returns [ClassDeclaration synthesized_type]:
         'class' name = ID ('extends' father_name = ID)? 
-		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), new Identifier((($father_name != null) ? $father_name.getText() : "")));}
+		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), (($father_name != null) ? new Identifier($father_name.getText()) : null));}
 		'{' (varDeclaration{$synthesized_type.addVarDeclaration($varDeclaration.synthesized_type);})* 
 		(methodDeclaration{$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type);})* '}' 
 		
@@ -53,10 +63,14 @@ grammar Smoola;
 		{
 			$synthesized_type.addStatement($statements.synthesized_type);
 		}
-		'return' expression ';' '}'
+		'return' expression 
+		{
+			$synthesized_type.setReturnValue($expression.synthesized_type);
+		} ';' '}'
     ;
     statements returns [Block synthesized_type]:
-        {$synthesized_type = new Block();} (statement {$synthesized_type.addStatement($statement.synthesized_type);})*
+		{$synthesized_type = new Block();}
+		(statement {$synthesized_type.addStatement($statement.synthesized_type);})*
     ;
     statement returns [Statement synthesized_type]:
         statementBlock 
