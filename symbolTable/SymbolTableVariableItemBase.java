@@ -2,15 +2,16 @@ package symbolTable;
 
 import ast.Type.Type;
 
-public abstract class SymbolTableVariableItemBase extends SymbolTableItem {
+public /*abstract*/ class SymbolTableVariableItemBase extends SymbolTableItem {
 
     private int index;
     protected Type type;
 
-    public SymbolTableVariableItemBase(String name, Type type, int index) {
+    public SymbolTableVariableItemBase(String name, Type type, int index, int line) {
         this.name = name;
         this.type = type;
         this.index = index;
+        this.line = line;
     }
 
     public String getName() {

@@ -60,6 +60,10 @@ public class SymbolTable {
 		return items.size();
 	}
 
+	public HashMap<String, SymbolTableItem> getItems() {
+		return items;
+	}
+
 	public SymbolTable getPreSymbolTable() {
 		return pre;
 	}
