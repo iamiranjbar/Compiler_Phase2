@@ -16,6 +16,11 @@ grammar Smoola;
 		import ast.Type.ArrayType.*;
 		import ast.Type.PrimitiveType.*;
 		import ast.Type.UserDefinedType.*;
+		import symbolTable.*;
+		import java.util.Map;
+		import java.util.Iterator;
+		import java.util.Set;
+		import java.util.HashMap;
 	}
 
 	program:
@@ -37,7 +42,9 @@ grammar Smoola;
 		{
 			MethodDeclaration b = new MethodDeclaration(new Identifier($mainMethod.getText()));
 			b.setReturnType(new IntType());
-			b.addStatement($statements.synthesized_type);
+			for (int i =0 ; i < $statements.synthesized_type.size(); ++i){
+				b.addStatement($statements.synthesized_type.get(i));
+			}
 			b.setReturnValue($expression.synthesized_type);
 			$synthesized_type.addMethodDeclaration(b);
 		}
@@ -61,16 +68,18 @@ grammar Smoola;
 		(varDeclaration {$synthesized_type.addLocalVar($varDeclaration.synthesized_type);})* 
 		statements 
 		{
-			$synthesized_type.addStatement($statements.synthesized_type);
+			for (int i =0 ; i < $statements.synthesized_type.size(); ++i){
+				$synthesized_type.addStatement($statements.synthesized_type.get(i));
+			}
 		}
 		'return' expression 
 		{
 			$synthesized_type.setReturnValue($expression.synthesized_type);
 		} ';' '}'
     ;
-    statements returns [Block synthesized_type]:
-		{$synthesized_type = new Block();}
-		(statement {$synthesized_type.addStatement($statement.synthesized_type);})*
+    statements returns [ArrayList<Statement> synthesized_type]:
+		{$synthesized_type = new ArrayList<Statement>();}
+		(statement {$synthesized_type.add($statement.synthesized_type);})*
     ;
     statement returns [Statement synthesized_type]:
         statementBlock 
@@ -95,8 +104,14 @@ grammar Smoola;
 		}
     ;
     statementBlock returns [Block synthesized_type]:
-        '{' statements{ $synthesized_type = $statements.synthesized_type; } '}'
+        '{' {$synthesized_type = new Block();}statements
+		{
+			for (int i =0 ; i < $statements.synthesized_type.size(); ++i){
+				$synthesized_type.addStatement($statements.synthesized_type.get(i));
+			}
+		} '}'
     ;
+	
     statementCondition returns [Conditional synthesized_type]:
         'if' '('expression')' 'then' s1 = statement 
 		{
