@@ -5,14 +5,17 @@ class Test {
     }
 }
 
-class a {
+class bc{
+    var c : int;
+}
 
-    def b(c:int,e:d) : int
-    
-    {
-    
+class s extends bc {
+    var c : int; 
+    var d : int[];
+    def b(c:int,e:d) : int{
+    var c : int;
+    d = new int[1];
     return c - e.k()[5];
-    
     }
     
 }
