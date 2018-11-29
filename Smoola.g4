@@ -81,10 +81,12 @@ grammar Smoola;
 				        if (((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getItems().containsKey(pair2.getKey())) {
 				        	if (pair2.getValue() instanceof SymbolTableMethodItem) {
 				        		$error_count++;
-				        		System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", ((SymbolTableMethodItem)(pair2.getValue())).getLine(), ((SymbolTableMethodItem)(pair2.getValue())).getName());
+							int line = (((SymbolTableMethodItem)((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getInCurrentScope(((String)(pair2.getKey())))).getLine() > ((SymbolTableMethodItem)(pair2.getValue())).getLine()) ? ((SymbolTableMethodItem)((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getInCurrentScope(((String)(pair2.getKey())))).getLine() : ((SymbolTableMethodItem)(pair2.getValue())).getLine();
+				        		System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", line, ((SymbolTableMethodItem)(pair2.getValue())).getName());
 				        	} else {
 				        		$error_count++;
-				        		System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", ((SymbolTableVariableItemBase)(pair2.getValue())).getLine(), ((SymbolTableVariableItemBase)(pair2.getValue())).getName());
+							int line = (((SymbolTableVariableItemBase)((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getInCurrentScope(((String)(pair2.getKey())))).getLine() > ((SymbolTableVariableItemBase)(pair2.getValue())).getLine()) ? ((SymbolTableVariableItemBase)((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getInCurrentScope(((String)(pair2.getKey())))).getLine() : ((SymbolTableVariableItemBase)(pair2.getValue())).getLine();
+				        		System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", line, ((SymbolTableVariableItemBase)(pair2.getValue())).getName());
 				        	}
 				        }
 					}
