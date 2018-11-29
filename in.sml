@@ -1,19 +1,24 @@
-class Test {
-    def main(): int {
-        writeln((new BabyTest()).testMethod(1, 2));
+class test {
+    def main() : int{
         return 0;
     }
 }
 
-class s extends bc {
-    var c : int; 
-    def b(c:int,e:d) : int{
-    var c : int;
-    return c - e.k()[5];
+class child extends parent {
+    def method () : int{
+        return 0;
+    } 
+    def method () : int{
+        return 0;
     }
-    
 }
+    
+class parent {
+    def method () : int{
+        return 0;
+    }
 
-class bc{
-    var c : int;
+    def method () : int{
+        return 0;
+    }
 }
