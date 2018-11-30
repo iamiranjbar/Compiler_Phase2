@@ -82,6 +82,7 @@ fabric.properties
 .idea/sonarlint
 
 ### VisualStudioCode ###
+.vscode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -93,3 +94,4 @@ fabric.properties
 
 .antlr
 *.class
+test/*
