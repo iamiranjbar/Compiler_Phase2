@@ -99,7 +99,7 @@ grammar Smoola;
 			$synthesized_type.addClass($classDeclaration.synthesized_type);
 			 
     		$inherited_error_count = $classDeclaration.error_count;
-    		$synthesized_type.addClass($classDeclaration.synthesized_type);
+    		//$synthesized_type.addClass($classDeclaration.synthesized_type);
     		try{
     			$inherited_table.put(new SymbolTableClassItem($classDeclaration.synthesized_type.getName().getName(), 
 					(($classDeclaration.synthesized_type.getParentName() != null) ?
