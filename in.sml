@@ -6,7 +6,7 @@ class test {
 
 class child extends parent {
 	var uuu : int;
-    def method () : int{
+    def method (yy : int , yy : int) : int{
     	uuu = new test();
         return 0;
     } 
@@ -17,6 +17,14 @@ class child extends parent {
     
 class parent {
 	var uuu : int;
+    def method () : int{
+        return 0;
+    }
+
+    def method () : int{
+        return 0;
+    }
+
     def method () : int{
         return 0;
     }

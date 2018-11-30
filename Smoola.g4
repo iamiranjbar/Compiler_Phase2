@@ -215,8 +215,40 @@ grammar Smoola;
     ;
     methodDeclaration[int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int synthesized_index,int error_count, SymbolTable synthesized_table,MethodDeclaration synthesized_type]:
         {$synthesized_table = new SymbolTable();}'def' name = ID {$synthesized_type = new MethodDeclaration(new Identifier($name.getText()));}
-		('(' ')' | ('(' n1 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n1.getText()),$type.synthesized_type));}
-		(',' n2 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n2.getText()),$type.synthesized_type));})* ')'))
+		('(' ')' | ('(' n1 = ID ':' type 
+		{
+			$synthesized_type.addArg(new VarDeclaration(new Identifier($n1.getText()),$type.synthesized_type));
+			try{
+				$synthesized_table.put(new SymbolTableVariableItemBase($n1.getText(), $type.synthesized_type, $inherited_index++, $n1.line));
+			}catch(ItemAlreadyExistsException ew){
+				$inherited_error_count++;
+    			try{
+    				// print("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++));
+    				$synthesized_table.put(new SymbolTableVariableItemBase("temp_" + $n1.getText() + Integer.toString($inherited_index++),
+    					$type.synthesized_type, $inherited_index++, $n1.line));
+    			}catch(ItemAlreadyExistsException e2){
+
+    			}
+    			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n1.line, $n1.getText());
+			}
+		}
+		(',' n2 = ID ':' type 
+		{
+			$synthesized_type.addArg(new VarDeclaration(new Identifier($n2.getText()),$type.synthesized_type));
+			try{
+				$synthesized_table.put(new SymbolTableVariableItemBase($n2.getText(), $type.synthesized_type, $inherited_index++, $n2.line));
+			}catch(ItemAlreadyExistsException ew){
+				$inherited_error_count++;
+    			try{
+    				// print("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++));
+    				$synthesized_table.put(new SymbolTableVariableItemBase("temp_" + $n2.getText() + Integer.toString($inherited_index++),
+    					$type.synthesized_type, $inherited_index++, $n2.line));
+    			}catch(ItemAlreadyExistsException e2){
+
+    			}
+    			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n2.line, $n2.getText());
+			}
+		})* ')'))
 		':' type {$synthesized_type.setReturnType($type.synthesized_type);} '{'  
 		(varDeclaration
 		{	
