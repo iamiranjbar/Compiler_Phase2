@@ -193,14 +193,14 @@ grammar Smoola;
 			try {
 				if ($methodDeclaration.synthesized_type != null) {
 					$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type);
-					$inherited_table.put(new SymbolTableMethodItem($methodDeclaration.synthesized_type.getName().getName(),/*$methodDeclaration.synthesized_type.getArgs()*/null, $methodDeclaration.start.getLine()));	
+					$inherited_table.put(new SymbolTableMethodItem($methodDeclaration.synthesized_type.getName().getName(),$methodDeclaration.synthesized_type.getArgTypes(), $methodDeclaration.start.getLine()));	
 				}	
 			}
 			catch(ItemAlreadyExistsException e) {
 				$inherited_error_count++;
 				try{
 					// print("temp_" + $methodDeclaration.synthesized_type.getName().getName() + Integer.toString($inherited_index++));
-					$inherited_table.put(new SymbolTableMethodItem("temp_" + $methodDeclaration.synthesized_type.getName().getName() + Integer.toString($inherited_index++),/*$methodDeclaration.synthesized_type.getArgs()*/null, $methodDeclaration.start.getLine()));
+					$inherited_table.put(new SymbolTableMethodItem("temp_" + $methodDeclaration.synthesized_type.getName().getName() + Integer.toString($inherited_index++),$methodDeclaration.synthesized_type.getArgTypes(), $methodDeclaration.start.getLine()));
 				}catch(ItemAlreadyExistsException e2){
 
 				}
