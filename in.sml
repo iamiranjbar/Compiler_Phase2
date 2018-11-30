@@ -1,10 +1,10 @@
-class test {
+class parent {
     def main() : int{
         return 0;
     }
 }
 
-class child extends parent {
+class parent2 extends parent4 {
 	var uuu : int;
     def method (yy : int , yy : int) : int{
     	var yy : string;
@@ -14,6 +14,7 @@ class child extends parent {
     def method () : int{
     	uuu = new int[0];
     	uuu = new int[0];
+    	uuu[0] = k;
         return 0;
     }
 }

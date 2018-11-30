@@ -21,7 +21,8 @@ grammar Smoola;
 		    while (it.hasNext()) {
 		        Map.Entry pair = (Map.Entry)it.next();
 	        	System.out.println(pair.getKey());
-	         	Iterator it2 = ((SymbolTableClassItem)(pair.getValue())).getSymbolTable().getItems().entrySet().iterator();
+	         	Iterator it2 =
+	         		((SymbolTableClassItem)(pair.getValue())).getSymbolTable().getItems().entrySet().iterator();
 			    while (it2.hasNext()) {
 			        Map.Entry pair2 = (Map.Entry)it2.next();
 			        System.out.printf("\t%s\n", pair2.getKey());
@@ -65,8 +66,8 @@ grammar Smoola;
 			if ($program1.synthesized_table.getItemsSize() == 0 || $program1.error_count > 0) {
 				if ($program1.synthesized_table.getItemsSize() == 0) {
 					// System.out.printf("Line:%d:No class exists in the program\n", $program1.start.getLine());
-					errors.add(new ErrorItem(new Integer($program1.start.getLine()), String.format("Line:%d:No class exists in the program\n",
-						$program1.start.getLine())));
+					errors.add(new ErrorItem(new Integer($program1.start.getLine()),
+						String.format("Line:%d:No class exists in the program\n", $program1.start.getLine())));
 				}
 				printErrors(errors);
 			} else {
@@ -75,7 +76,8 @@ grammar Smoola;
 			}
 		}
 	;
-    program1 [SymbolTable inherited_table, int inherited_error_count, ArrayList<ErrorItem> errors] returns [ArrayList<ErrorItem> errors_, Program synthesized_type,int error_count, SymbolTable synthesized_table]:
+    program1 [SymbolTable inherited_table, int inherited_error_count, ArrayList<ErrorItem> errors] returns
+    	[ArrayList<ErrorItem> errors_, Program synthesized_type,int error_count, SymbolTable synthesized_table]:
         {int index = 0; $synthesized_type = new Program();} mainClass [new SymbolTable(inherited_table)]
 		{
 			$synthesized_type.setMainClass($mainClass.synthesized_type);
@@ -83,7 +85,8 @@ grammar Smoola;
         		if ($mainClass.synthesized_type == null) {
         			throw new Exception();
         		} //for What?!
-        		$inherited_table.put(new SymbolTableClassItem($mainClass.synthesized_type.getName().getName(), null, $mainClass.synthesized_table, $mainClass.start.getLine()));
+        		$inherited_table.put(new SymbolTableClassItem($mainClass.synthesized_type.getName().getName(), null,
+        			$mainClass.synthesized_table, $mainClass.start.getLine()));
         	}
         	catch(Exception e) {
         			
@@ -99,26 +102,28 @@ grammar Smoola;
     		$synthesized_type.addClass($classDeclaration.synthesized_type);
     		try{
     			$inherited_table.put(new SymbolTableClassItem($classDeclaration.synthesized_type.getName().getName(), 
-					(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
-					$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
+					(($classDeclaration.synthesized_type.getParentName() != null) ?
+						$classDeclaration.synthesized_type.getParentName().getName() : null),
+						$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
     		}catch(ItemAlreadyExistsException e){
     			// add class with new name
     			try{
     				// print("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++));
-    				$inherited_table.put(new SymbolTableClassItem("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++), 
-						(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
+    				$inherited_table.put(new SymbolTableClassItem("temp_" +
+    					$classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++), 
+						(($classDeclaration.synthesized_type.getParentName() != null) ?
+						$classDeclaration.synthesized_type.getParentName().getName() : null),
 						$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
     			} catch(ItemAlreadyExistsException e2){
 
     			}
     			$inherited_error_count++;
-    			$errors.add(new ErrorItem(new Integer($classDeclaration.start.getLine()), String.format("Line:%d:Redefinition of class %s\n",
-    				$classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName())));
+    			$errors.add(new ErrorItem(new Integer($classDeclaration.start.getLine()),
+    				String.format("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(),
+    				$classDeclaration.synthesized_type.getName().getName())));
     			// System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
     		}
-    		// System.out.println("****************");
-    		// printErrors($errors);
-    		// System.out.println("****************");
+ 
 		 })*
 		  {$synthesized_table = $inherited_table; $error_count = $inherited_error_count;}
         {
@@ -126,12 +131,15 @@ grammar Smoola;
 		    while (it.hasNext()) {
 		        Map.Entry pair = (Map.Entry)it.next();
 		        if (((SymbolTableClassItem)(pair.getValue())).getParentName() != null && ((SymbolTableClassItem)(pair.getValue())).getParentName() != "") {
-		         	((SymbolTableClassItem)(pair.getValue())).setParent(((SymbolTableClassItem)($synthesized_table.getInCurrentScope(((SymbolTableClassItem)(pair.getValue())).getParentName()))).getSymbolTable());
+		        	if (((SymbolTableClassItem)($synthesized_table.getInCurrentScope(((SymbolTableClassItem)(pair.getValue())).getParentName()))) != null) {
+		        		((SymbolTableClassItem)(pair.getValue())).setParent(((SymbolTableClassItem)($synthesized_table.getInCurrentScope(((SymbolTableClassItem)(pair.getValue())).getParentName()))).getSymbolTable());
+		        	}
+		         	//((SymbolTableClassItem)(pair.getValue())).setParent();
 		         	Iterator it2 = ((SymbolTableClassItem)(pair.getValue())).getSymbolTable().getItems().entrySet().iterator();
 		         	ArrayList<SymbolTableItem> items = new ArrayList<>();
 				    while (it2.hasNext()) {
 				        Map.Entry pair2 = (Map.Entry)it2.next();
-				        if (((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getItems().containsKey(pair2.getKey())) {
+				        if (((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable() != null && ((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getItems().containsKey(pair2.getKey())) {
 				        	if (pair2.getValue() instanceof SymbolTableMethodItem) {
 				        		$error_count++;
 				        		$errors.add(new ErrorItem(new Integer(((SymbolTableMethodItem)(pair2.getValue())).getLine()), String.format("Line:%d:Redefinition of method %s\n",
@@ -166,7 +174,7 @@ grammar Smoola;
 			        		((SymbolTableClassItem)(pair.getValue())).removeItem(((SymbolTableVariableItemBase)element).getKey());
 		        		}
 					}
-					// printSymbols($synthesized_table.getItems());
+					//printSymbols($synthesized_table.getItems());
 		    	}
         	}
         } 
