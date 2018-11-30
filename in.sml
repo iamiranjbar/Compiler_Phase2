@@ -13,6 +13,7 @@ class child extends parent {
     } 
     def method () : int{
     	uuu = new int[0];
+    	uuu = new int[0];
         return 0;
     }
 }

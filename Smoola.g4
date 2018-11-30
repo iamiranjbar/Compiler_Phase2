@@ -1,10 +1,22 @@
 grammar Smoola;
 	@members{
-	   void print(Object obj){
-	        System.out.println(obj);
-	   }
 
-	   void printSymbols(HashMap<String, SymbolTableItem> items){
+		class ErrorItem {
+		   	public Integer line;
+		   	public String error;
+		   	ErrorItem(Integer line, String error) {
+		   		this.line = line;
+		   		this.error = error;
+		   	}
+
+		   	public Integer getLine(){return line;}
+		}
+
+		void print(Object obj){
+	        System.out.println(obj);
+		}
+
+		void printSymbols(HashMap<String, SymbolTableItem> items){
 	   		Iterator it = items.entrySet().iterator();
 		    while (it.hasNext()) {
 		        Map.Entry pair = (Map.Entry)it.next();
@@ -15,7 +27,14 @@ grammar Smoola;
 			        System.out.printf("\t%s\n", pair2.getKey());
 			    }
 			}
-	   }
+		}
+
+		void printErrors(ArrayList<ErrorItem> items){
+			items.sort((o1, o2) -> o1.getLine().compareTo(o2.getLine()));
+	   		for(ErrorItem item : items) {
+	   			System.out.print(item.error);
+	   		}
+		}
 	}
 
 	@header {
@@ -34,23 +53,29 @@ grammar Smoola;
 		import java.util.Iterator;
 		import java.util.Set;
 		import java.util.HashMap;
+		import java.util.ArrayList;
 	}
 
 	program:
-		program1 [new SymbolTable(), 0]
+		{ArrayList<ErrorItem> errors = new ArrayList<>();}
+		program1 [new SymbolTable(), 0, errors]
 		{
+			errors = $program1.errors_;
 			print($program1.error_count);
 			if ($program1.synthesized_table.getItemsSize() == 0 || $program1.error_count > 0) {
 				if ($program1.synthesized_table.getItemsSize() == 0) {
-					System.out.printf("Line:%d:No class exists in the program\n", $program1.start.getLine());	
+					// System.out.printf("Line:%d:No class exists in the program\n", $program1.start.getLine());
+					errors.add(new ErrorItem(new Integer($program1.start.getLine()), String.format("Line:%d:No class exists in the program\n",
+						$program1.start.getLine())));
 				}
+				printErrors(errors);
 			} else {
 				VisitorImpl visitor = new VisitorImpl();
 				$program1.synthesized_type.accept(visitor);
 			}
 		}
 	;
-    program1 [SymbolTable inherited_table, int inherited_error_count] returns [Program synthesized_type,int error_count, SymbolTable synthesized_table]:
+    program1 [SymbolTable inherited_table, int inherited_error_count, ArrayList<ErrorItem> errors] returns [ArrayList<ErrorItem> errors_, Program synthesized_type,int error_count, SymbolTable synthesized_table]:
         {int index = 0; $synthesized_type = new Program();} mainClass [new SymbolTable(inherited_table)]
 		{
 			$synthesized_type.setMainClass($mainClass.synthesized_type);
@@ -64,8 +89,9 @@ grammar Smoola;
         			
         	}
 		} 
-		(classDeclaration[$inherited_error_count ,index , new SymbolTable(inherited_table)]
+		(classDeclaration[$inherited_error_count ,index , new SymbolTable(inherited_table), $errors]
 		 {
+		 	$errors = $classDeclaration.errors_; 
 		 	index = $classDeclaration.synthesized_index;
 			$synthesized_type.addClass($classDeclaration.synthesized_type);
 			 
@@ -86,8 +112,13 @@ grammar Smoola;
 
     			}
     			$inherited_error_count++;
-    			System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
+    			$errors.add(new ErrorItem(new Integer($classDeclaration.start.getLine()), String.format("Line:%d:Redefinition of class %s\n",
+    				$classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName())));
+    			// System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
     		}
+    		// System.out.println("****************");
+    		// printErrors($errors);
+    		// System.out.println("****************");
 		 })*
 		  {$synthesized_table = $inherited_table; $error_count = $inherited_error_count;}
         {
@@ -103,11 +134,15 @@ grammar Smoola;
 				        if (((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getItems().containsKey(pair2.getKey())) {
 				        	if (pair2.getValue() instanceof SymbolTableMethodItem) {
 				        		$error_count++;
-				        		System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", ((SymbolTableMethodItem)(pair2.getValue())).getLine(), ((SymbolTableMethodItem)(pair2.getValue())).getName());
+				        		$errors.add(new ErrorItem(new Integer(((SymbolTableMethodItem)(pair2.getValue())).getLine()), String.format("Line:%d:Redefinition of method %s\n",
+    								((SymbolTableMethodItem)(pair2.getValue())).getLine(), ((SymbolTableMethodItem)(pair2.getValue())).getName())));
+				        		// System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", ((SymbolTableMethodItem)(pair2.getValue())).getLine(), ((SymbolTableMethodItem)(pair2.getValue())).getName());
 				        		items.add((SymbolTableMethodItem)(pair2.getValue()));
 				        	} else {
 				        		$error_count++;
-				        		System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", ((SymbolTableVariableItemBase)(pair2.getValue())).getLine(), ((SymbolTableVariableItemBase)(pair2.getValue())).getName());
+				        		$errors.add(new ErrorItem(new Integer(((SymbolTableVariableItemBase)(pair2.getValue())).getLine()), String.format("Line:%d:Redefinition of variable %s\n",
+    								((SymbolTableVariableItemBase)(pair2.getValue())).getLine(), ((SymbolTableVariableItemBase)(pair2.getValue())).getName())));
+				        		// System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", ((SymbolTableVariableItemBase)(pair2.getValue())).getLine(), ((SymbolTableVariableItemBase)(pair2.getValue())).getName());
 				        		items.add((SymbolTableVariableItemBase)(pair2.getValue()));
 				        	}
 				        }
@@ -134,8 +169,8 @@ grammar Smoola;
 					// printSymbols($synthesized_table.getItems());
 		    	}
         	}
-        }
-		  EOF
+        } 
+		  EOF {$errors_ = $errors;}
     ;
     mainClass [SymbolTable inherited_table] returns [ClassDeclaration synthesized_type, SymbolTable synthesized_table]:
         // name should be checked later
@@ -163,7 +198,7 @@ grammar Smoola;
 			$synthesized_table = $inherited_table;
 		}
     ;
-    classDeclaration [int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int synthesized_index,int error_count, ClassDeclaration synthesized_type, SymbolTable synthesized_table]:
+    classDeclaration [int inherited_error_count, int inherited_index, SymbolTable inherited_table, ArrayList<ErrorItem> errors] returns [ArrayList<ErrorItem> errors_, int synthesized_index,int error_count, ClassDeclaration synthesized_type, SymbolTable synthesized_table]:
         'class' name = ID ('extends' father_name = ID)? 
 		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), (($father_name != null) ? new Identifier($father_name.getText()) : null));}
 		'{' (varDeclaration
@@ -182,11 +217,14 @@ grammar Smoola;
 				} catch(ItemAlreadyExistsException e2){
 
 				}
-				System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
+				// System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
+				$errors.add(new ErrorItem(new Integer($varDeclaration.start.getLine()), String.format("Line:%d:Redefinition of variable %s\n",
+    								$varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName())));
 			}
 		})* 
-		(methodDeclaration[$inherited_error_count, $inherited_index, $inherited_table]
+		(methodDeclaration[$inherited_error_count, $inherited_index, $inherited_table, $errors]
 		{
+			$errors = $methodDeclaration.errors_;
 			$inherited_index = $methodDeclaration.synthesized_index;
 			$inherited_error_count = $methodDeclaration.error_count;
 			try {
@@ -203,13 +241,16 @@ grammar Smoola;
 				}catch(ItemAlreadyExistsException e2){
 
 				}
-				System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", $methodDeclaration.start.getLine(), $methodDeclaration.synthesized_type.getName().getName());	
+				// System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", $methodDeclaration.start.getLine(), $methodDeclaration.synthesized_type.getName().getName());	
+				$errors.add(new ErrorItem(new Integer($methodDeclaration.start.getLine()), String.format("Line:%d:Redefinition of method %s\n",
+    								$methodDeclaration.start.getLine(), $methodDeclaration.synthesized_type.getName().getName())));
 			}
 		})* '}'
 		{
 			$synthesized_table = $inherited_table;
 			$error_count = $inherited_error_count;
 			$synthesized_index = $inherited_index;
+			$errors_ = $errors;
 		}
 		
     ;
@@ -217,7 +258,7 @@ grammar Smoola;
         'var' ID ':' type ';' 
 		{$synthesized_type = new VarDeclaration(new Identifier($ID.getText()),$type.synthesized_type);}
     ;
-    methodDeclaration[int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int synthesized_index,int error_count, SymbolTable synthesized_table,MethodDeclaration synthesized_type]:
+    methodDeclaration[int inherited_error_count, int inherited_index, SymbolTable inherited_table, ArrayList<ErrorItem> errors] returns [ArrayList<ErrorItem> errors_, int synthesized_index,int error_count, SymbolTable synthesized_table,MethodDeclaration synthesized_type]:
         {$synthesized_table = new SymbolTable();}'def' name = ID {$synthesized_type = new MethodDeclaration(new Identifier($name.getText()));}
 		('(' ')' | ('(' n1 = ID ':' type 
 		{
@@ -233,7 +274,8 @@ grammar Smoola;
     			}catch(ItemAlreadyExistsException e2){
 
     			}
-    			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n1.line, $n1.getText());
+    			// System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n1.line, $n1.getText());
+    			$errors.add(new ErrorItem($n1.line, String.format("Line:%d:Redefinition of variable %s\n", $n1.line, $n1.getText())));
 			}
 		}
 		(',' n2 = ID ':' type 
@@ -250,7 +292,8 @@ grammar Smoola;
     			}catch(ItemAlreadyExistsException e2){
 
     			}
-    			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n2.line, $n2.getText());
+    			// System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $n2.line, $n2.getText());
+    			$errors.add(new ErrorItem($n2.line, String.format("Line:%d:Redefinition of variable %s\n", $n2.line, $n2.getText())));
 			}
 		})* ')'))
 		':' type {$synthesized_type.setReturnType($type.synthesized_type);} '{'  
@@ -270,7 +313,9 @@ grammar Smoola;
     			}catch(ItemAlreadyExistsException e2){
 
     			}
-    			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
+    			// System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
+    			$errors.add(new ErrorItem($varDeclaration.start.getLine(), String.format("Line:%d:Redefinition of variable %s\n",
+    				$varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName())));
     		}
 		}
 		)* 
@@ -280,27 +325,33 @@ grammar Smoola;
 				$synthesized_type.addStatement($statements.synthesized_type.get(i));
 			}
 			$inherited_error_count += $statements.error_count;
+			for(ErrorItem it : $statements.errors){
+				if(it != null)
+					$errors.add(it);
+			}
 		}
 		'return' expression 
 		{
 			$synthesized_type.setReturnValue($expression.synthesized_type);
 			$synthesized_table.pop();
 		} ';' '}'
-		{$error_count = $inherited_error_count; $synthesized_index = $inherited_index;}
+		{$error_count = $inherited_error_count; $synthesized_index = $inherited_index; $errors_ = $errors;}
     ;
-    statements returns [ArrayList<Statement> synthesized_type,int error_count]:
+    statements returns [ArrayList<Statement> synthesized_type,int error_count, ArrayList<ErrorItem> errors]:
 		{
 			$error_count = 0;
+			$errors = new ArrayList<ErrorItem>();
 			$synthesized_type = new ArrayList<Statement>();
 		}
 		(statement 
 		{
 			$synthesized_type.add($statement.synthesized_type);
 			$error_count += $statement.error_count;
+			$errors.add($statement.error_item);
 		}
 		)*
     ;
-    statement returns [Statement synthesized_type,int error_count]:
+    statement returns [Statement synthesized_type,int error_count, ErrorItem error_item]:
 		{$error_count = 0;}
 		(
         statementBlock 
@@ -323,6 +374,7 @@ grammar Smoola;
 		{
 			$synthesized_type = $statementAssignment.synthesized_type;
 			$error_count = $statementAssignment.error_count;
+			$error_item = $statementAssignment.error_item;
 		}
 		)
     ;
@@ -352,40 +404,46 @@ grammar Smoola;
         'writeln(' expression ')' ';' 
 		{$synthesized_type = new Write($expression.synthesized_type);} 
     ;
-    statementAssignment returns [Assign synthesized_type,int error_count]:
+    statementAssignment returns [Assign synthesized_type,int error_count, ErrorItem error_item]:
         expression ';' 
 		{
 			$synthesized_type = new Assign(((BinaryExpression)$expression.synthesized_type).getLeft(),((BinaryExpression)$expression.synthesized_type).getRight());
 			$error_count = $expression.error_count;
+			$error_item = $expression.error_item;
 		}
     ;
 
-    expression returns [Expression synthesized_type,int error_count]:
+    expression returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionAssignment 
 		{
 			$synthesized_type = $expressionAssignment.synthesized_type;
 			$error_count = $expressionAssignment.error_count;
+			$error_item = $expressionAssignment.error_item;
 		}
 	;
 
-    expressionAssignment returns [Expression synthesized_type,int error_count]:
+    expressionAssignment returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionOr '=' expressionAssignment 
 		{
 			$synthesized_type = new BinaryExpression($expressionOr.synthesized_type,$expressionAssignment.synthesized_type,BinaryOperator.assign);
 			$error_count = $expressionAssignment.error_count;
+			$error_item = $expressionAssignment.error_item;
+
 		}
 	    |	expressionOr 
 		{
 			$synthesized_type = $expressionOr.synthesized_type;
 			$error_count = $expressionOr.error_count;
+			$error_item = $expressionOr.error_item;
 		}
 	;
 
-    expressionOr returns [Expression synthesized_type,int error_count]:
+    expressionOr returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionAnd expressionOrTemp[$expressionAnd.synthesized_type] 
 		{
 			$synthesized_type = $expressionOrTemp.synthesized_type;
 			$error_count = $expressionAnd.error_count;
+			$error_item = $expressionAnd.error_item;
 		}
 	;
 
@@ -395,11 +453,12 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;}
 	;
 
-    expressionAnd returns [Expression synthesized_type,int error_count]:
+    expressionAnd returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionEq expressionAndTemp[$expressionEq.synthesized_type]
 		{
 			$synthesized_type = $expressionAndTemp.synthesized_type;
 			$error_count = $expressionEq.error_count;
+			$error_item = $expressionEq.error_item;
 		}
 	;
 
@@ -409,11 +468,12 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;}
 	;
 
-    expressionEq returns [Expression synthesized_type,int error_count]:
+    expressionEq returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionCmp expressionEqTemp[$expressionCmp.synthesized_type] 
 		{
 			$synthesized_type = $expressionEqTemp.synthesized_type;
 			$error_count = $expressionCmp.error_count;
+			$error_item = $expressionCmp.error_item;
 		}
 	;
 
@@ -423,11 +483,12 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionCmp returns [Expression synthesized_type,int error_count]:
+    expressionCmp returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionAdd expressionCmpTemp[$expressionAdd.synthesized_type]
 		{
 			$synthesized_type = $expressionCmpTemp.synthesized_type;
-			$error_count = $expressionAdd.error_count;	
+			$error_count = $expressionAdd.error_count;
+			$error_item = $expressionAdd.error_item;
 		}
 	;
 
@@ -437,11 +498,12 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionAdd returns [Expression synthesized_type,int error_count]:
+    expressionAdd returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionMult expressionAddTemp[$expressionMult.synthesized_type]
 		{
 			$synthesized_type = $expressionAddTemp.synthesized_type;
 			$error_count = $expressionMult.error_count;
+			$error_item = $expressionMult.error_item;
 		}
 	;
 
@@ -451,11 +513,12 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionMult returns [Expression synthesized_type,int error_count]:
+    expressionMult returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionUnary expressionMultTemp[$expressionUnary.synthesized_type]
 		{
 			$synthesized_type = $expressionMultTemp.synthesized_type;
 			$error_count = $expressionUnary.error_count;
+			$error_item = $expressionUnary.error_item;
 		}
 	;
 
@@ -467,25 +530,28 @@ grammar Smoola;
 	    | {$synthesized_type = $inherited_type;} 
 	;
 
-    expressionUnary returns [Expression synthesized_type,int error_count]:
+    expressionUnary returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		{UnaryOperator u;} ('!'{u = UnaryOperator.not;} | '-'{u = UnaryOperator.minus;}) expressionUnary 
 		{ 
 			$synthesized_type = new UnaryExpression(u,$expressionUnary.synthesized_type);
 			$error_count = 0;
+			$error_item = null;
 		}
 	    |	
 		expressionMem 
 		{
 			$synthesized_type = $expressionMem.synthesized_type;
 			$error_count = $expressionMem.error_count;
+			$error_item = $expressionMem.error_item;
 		}
 	;
 
-    expressionMem returns [Expression synthesized_type,int error_count]:
+    expressionMem returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 		expressionMethods expressionMemTemp[$expressionMethods.synthesized_type]
 		{
 			$synthesized_type = $expressionMemTemp.synthesized_type;
 			$error_count = $expressionMethods.error_count;
+			$error_item = $expressionMethods.error_item;
 		}
 	;
 
@@ -494,11 +560,12 @@ grammar Smoola;
 		{$synthesized_type = new ArrayCall($inherited_type,$expression.synthesized_type);}
 	    | {$synthesized_type = $inherited_type;}
 	;
-	expressionMethods returns [Expression synthesized_type,int error_count]:
+	expressionMethods returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
 	    expressionOther expressionMethodsTemp[$expressionOther.synthesized_type]
 		{
 			$synthesized_type = $expressionMethodsTemp.synthesized_type;
 			$error_count = $expressionOther.error_count;
+			$error_item = $expressionOther.error_item;
 		}
 	;
 	expressionMethodsTemp [Expression inherited_type] returns [Expression synthesized_type]:
@@ -528,8 +595,8 @@ grammar Smoola;
 		}
 	    | {$synthesized_type = $inherited_type;}
 	;
-    expressionOther returns [Expression synthesized_type,int error_count]:
-		{$error_count = 0;}
+    expressionOther returns [Expression synthesized_type,int error_count, ErrorItem error_item]:
+		{$error_count = 0; $error_item = null;}
 		(
 			CONST_NUM {$synthesized_type = new IntValue(Integer.parseInt($CONST_NUM.getText()), new IntType());}
         |	CONST_STR {$synthesized_type = new StringValue($CONST_STR.getText(),new StringType());}
@@ -539,7 +606,8 @@ grammar Smoola;
 			((NewArray)$synthesized_type).setExpression(new IntValue(Integer.parseInt($index.text),new IntType()));
 			if (Integer.parseInt($index.text) <= 0) {
         		$error_count = 1;
-        		System.out.printf("Line:%d:Array length should not be zero or negative\n", $index.getLine());
+        		$error_item = new ErrorItem($index.getLine(), String.format("Line:%d:Array length should not be zero or negative\n", $index.getLine()));
+        		// System.out.printf("Line:%d:Array length should not be zero or negative\n", $index.getLine());
         	}
 		}
         |   'new ' ID '(' ')'
