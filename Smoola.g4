@@ -64,31 +64,30 @@ grammar Smoola;
         			
         	}
 		} 
-		(classDeclaration[inherited_error_count ,index , new SymbolTable(inherited_table)]
+		(classDeclaration[$inherited_error_count ,index , new SymbolTable(inherited_table)]
 		 {
-		 	 index = $classDeclaration.synthesized_index;
-			 $synthesized_type.addClass($classDeclaration.synthesized_type);
-			         	{
-        		$inherited_error_count = $inherited_error_count + $classDeclaration.error_count;
-        		$synthesized_type.addClass($classDeclaration.synthesized_type);
-        		try{
-        			$inherited_table.put(new SymbolTableClassItem($classDeclaration.synthesized_type.getName().getName(), 
+		 	index = $classDeclaration.synthesized_index;
+			$synthesized_type.addClass($classDeclaration.synthesized_type);
+			 
+    		$inherited_error_count = $classDeclaration.error_count;
+    		$synthesized_type.addClass($classDeclaration.synthesized_type);
+    		try{
+    			$inherited_table.put(new SymbolTableClassItem($classDeclaration.synthesized_type.getName().getName(), 
+					(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
+					$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
+    		}catch(ItemAlreadyExistsException e){
+    			// add class with new name
+    			try{
+    				// print("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++));
+    				$inherited_table.put(new SymbolTableClassItem("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++), 
 						(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
 						$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
-        		}catch(ItemAlreadyExistsException e){
-        			// add class with new name
-        			try{
-        				// print("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++));
-        				$inherited_table.put(new SymbolTableClassItem("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++), 
-							(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
-							$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
-        			} catch(ItemAlreadyExistsException e2){
+    			} catch(ItemAlreadyExistsException e2){
 
-        			}
-        			$inherited_error_count++;
-        			System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
-        		}
-        	}
+    			}
+    			$inherited_error_count++;
+    			System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
+    		}
 		 })*
 		  {$synthesized_table = $inherited_table; $error_count = $inherited_error_count;}
         {
@@ -189,7 +188,7 @@ grammar Smoola;
 		(methodDeclaration[$inherited_error_count, $inherited_index, $inherited_table]
 		{
 			$inherited_index = $methodDeclaration.synthesized_index;
-			$inherited_error_count = $inherited_error_count + $methodDeclaration.error_count;
+			$inherited_error_count = $methodDeclaration.error_count;
 			try {
 				if ($methodDeclaration.synthesized_type != null) {
 					$synthesized_type.addMethodDeclaration($methodDeclaration.synthesized_type);
@@ -206,7 +205,12 @@ grammar Smoola;
 				}
 				System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", $methodDeclaration.start.getLine(), $methodDeclaration.synthesized_type.getName().getName());	
 			}
-		})* '}' {$synthesized_table = $inherited_table; $error_count = $inherited_error_count; $synthesized_index = $inherited_index;}
+		})* '}'
+		{
+			$synthesized_table = $inherited_table;
+			$error_count = $inherited_error_count;
+			$synthesized_index = $inherited_index;
+		}
 		
     ;
     varDeclaration returns [VarDeclaration synthesized_type]:
