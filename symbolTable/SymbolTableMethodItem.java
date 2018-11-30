@@ -18,6 +18,14 @@ public class SymbolTableMethodItem extends SymbolTableItem {
         return name;
     }
 
+    public void setName(String newName) {
+        this.name = newName;
+    }
+
+    public ArrayList<Type> getArgTypes() {
+        return argTypes;
+    }
+
     @Override
     public String getKey() {
         //todo

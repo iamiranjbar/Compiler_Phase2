@@ -64,6 +64,10 @@ public class SymbolTable {
 		return items;
 	}
 
+	public void removeItem(String key) {
+		items.remove(key);
+	}
+
 	public SymbolTable getPreSymbolTable() {
 		return pre;
 	}

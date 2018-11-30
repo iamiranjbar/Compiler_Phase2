@@ -18,6 +18,10 @@ public /*abstract*/ class SymbolTableVariableItemBase extends SymbolTableItem {
         return name;
     }
 
+    public void setName(String newName) {
+        this.name = newName;
+    }
+
     public Type getType() {
         return type;
     }

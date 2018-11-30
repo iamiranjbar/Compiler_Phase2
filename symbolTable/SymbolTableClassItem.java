@@ -33,6 +33,14 @@ public class SymbolTableClassItem extends SymbolTableItem {
         return symbolTable;
     }
 
+    public void removeItem(String key) {
+    	symbolTable.removeItem(key);
+    }
+
+    public void putItem(SymbolTableItem item) throws ItemAlreadyExistsException {
+    	symbolTable.put(item);
+    }
+
     @Override
     public String getKey() {
         return name;

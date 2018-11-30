@@ -3,6 +3,19 @@ grammar Smoola;
 	   void print(Object obj){
 	        System.out.println(obj);
 	   }
+
+	   void printSymbols(HashMap<String, SymbolTableItem> items){
+	   		Iterator it = items.entrySet().iterator();
+		    while (it.hasNext()) {
+		        Map.Entry pair = (Map.Entry)it.next();
+	        	System.out.println(pair.getKey());
+	         	Iterator it2 = ((SymbolTableClassItem)(pair.getValue())).getSymbolTable().getItems().entrySet().iterator();
+			    while (it2.hasNext()) {
+			        Map.Entry pair2 = (Map.Entry)it2.next();
+			        System.out.printf("\t%s\n", pair2.getKey());
+			    }
+			}
+	   }
 	}
 
 	@header {
@@ -38,7 +51,7 @@ grammar Smoola;
 		}
 	;
     program1 [SymbolTable inherited_table, int inherited_error_count] returns [Program synthesized_type,int error_count, SymbolTable synthesized_table]:
-        {$synthesized_type = new Program();} mainClass [new SymbolTable(inherited_table)]
+        {int index = 0; $synthesized_type = new Program();} mainClass [new SymbolTable(inherited_table)]
 		{
 			$synthesized_type.setMainClass($mainClass.synthesized_type);
 			try {
@@ -51,8 +64,9 @@ grammar Smoola;
         			
         	}
 		} 
-		(classDeclaration[inherited_error_count ,0, new SymbolTable(inherited_table)]
+		(classDeclaration[inherited_error_count ,index , new SymbolTable(inherited_table)]
 		 {
+		 	 index = $classDeclaration.synthesized_index;
 			 $synthesized_type.addClass($classDeclaration.synthesized_type);
 			         	{
         		$inherited_error_count = $inherited_error_count + $classDeclaration.error_count;
@@ -63,6 +77,14 @@ grammar Smoola;
 						$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
         		}catch(ItemAlreadyExistsException e){
         			// add class with new name
+        			try{
+        				// print("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++));
+        				$inherited_table.put(new SymbolTableClassItem("temp_" + $classDeclaration.synthesized_type.getName().getName() + Integer.toString(index++), 
+							(($classDeclaration.synthesized_type.getParentName() != null) ? $classDeclaration.synthesized_type.getParentName().getName() : null),
+							$classDeclaration.synthesized_table, $classDeclaration.start.getLine()));
+        			} catch(ItemAlreadyExistsException e2){
+
+        			}
         			$inherited_error_count++;
         			System.out.printf("Line:%d:Redefinition of class %s\n", $classDeclaration.start.getLine(), $classDeclaration.synthesized_type.getName().getName());
         		}
@@ -76,18 +98,41 @@ grammar Smoola;
 		        if (((SymbolTableClassItem)(pair.getValue())).getParentName() != null && ((SymbolTableClassItem)(pair.getValue())).getParentName() != "") {
 		         	((SymbolTableClassItem)(pair.getValue())).setParent(((SymbolTableClassItem)($synthesized_table.getInCurrentScope(((SymbolTableClassItem)(pair.getValue())).getParentName()))).getSymbolTable());
 		         	Iterator it2 = ((SymbolTableClassItem)(pair.getValue())).getSymbolTable().getItems().entrySet().iterator();
+		         	ArrayList<SymbolTableItem> items = new ArrayList<>();
 				    while (it2.hasNext()) {
 				        Map.Entry pair2 = (Map.Entry)it2.next();
 				        if (((SymbolTableClassItem)(pair.getValue())).getParentSymbolTable().getItems().containsKey(pair2.getKey())) {
 				        	if (pair2.getValue() instanceof SymbolTableMethodItem) {
 				        		$error_count++;
 				        		System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", ((SymbolTableMethodItem)(pair2.getValue())).getLine(), ((SymbolTableMethodItem)(pair2.getValue())).getName());
+				        		items.add((SymbolTableMethodItem)(pair2.getValue()));
 				        	} else {
 				        		$error_count++;
 				        		System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", ((SymbolTableVariableItemBase)(pair2.getValue())).getLine(), ((SymbolTableVariableItemBase)(pair2.getValue())).getName());
+				        		items.add((SymbolTableVariableItemBase)(pair2.getValue()));
 				        	}
 				        }
 					}
+					for(SymbolTableItem element : items) {
+						if (element instanceof SymbolTableMethodItem) {
+			        		try{
+			        			((SymbolTableClassItem)(pair.getValue())).putItem(new SymbolTableMethodItem("temp_" + ((SymbolTableMethodItem)element).getName() + Integer.toString(index++),
+			        				((SymbolTableMethodItem)element).getArgTypes(), ((SymbolTableMethodItem)element).getLine()));
+			        		}catch(ItemAlreadyExistsException e3){
+
+			        		}
+			        		((SymbolTableClassItem)(pair.getValue())).removeItem(((SymbolTableMethodItem)element).getKey());
+		        		} else {
+		        			try{
+			        			((SymbolTableClassItem)(pair.getValue())).putItem(new SymbolTableVariableItemBase("temp_" + ((SymbolTableVariableItemBase)element).getName() + Integer.toString(index++),
+			        				((SymbolTableVariableItemBase)element).getType(), index++, ((SymbolTableVariableItemBase)element).getLine()));
+			        		}catch(ItemAlreadyExistsException e3){
+			        			
+			        		}
+			        		((SymbolTableClassItem)(pair.getValue())).removeItem(((SymbolTableVariableItemBase)element).getKey());
+		        		}
+					}
+					// printSymbols($synthesized_table.getItems());
 		    	}
         	}
         }
@@ -119,7 +164,7 @@ grammar Smoola;
 			$synthesized_table = $inherited_table;
 		}
     ;
-    classDeclaration [int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int error_count, ClassDeclaration synthesized_type, SymbolTable synthesized_table]:
+    classDeclaration [int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int synthesized_index,int error_count, ClassDeclaration synthesized_type, SymbolTable synthesized_table]:
         'class' name = ID ('extends' father_name = ID)? 
 		{$synthesized_type = new ClassDeclaration(new Identifier($name.getText()), (($father_name != null) ? new Identifier($father_name.getText()) : null));}
 		'{' (varDeclaration
@@ -132,11 +177,18 @@ grammar Smoola;
 			}
 			catch(ItemAlreadyExistsException e) {
 				$inherited_error_count++;
+				try{
+					//print("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++));
+					$inherited_table.put(new SymbolTableVariableItemBase("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++), $varDeclaration.synthesized_type.getType(), $inherited_index++, $varDeclaration.start.getLine()));
+				} catch(ItemAlreadyExistsException e2){
+
+				}
 				System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
 			}
 		})* 
 		(methodDeclaration[$inherited_error_count, $inherited_index, $inherited_table]
 		{
+			$inherited_index = $methodDeclaration.synthesized_index;
 			$inherited_error_count = $inherited_error_count + $methodDeclaration.error_count;
 			try {
 				if ($methodDeclaration.synthesized_type != null) {
@@ -146,16 +198,22 @@ grammar Smoola;
 			}
 			catch(ItemAlreadyExistsException e) {
 				$inherited_error_count++;
+				try{
+					// print("temp_" + $methodDeclaration.synthesized_type.getName().getName() + Integer.toString($inherited_index++));
+					$inherited_table.put(new SymbolTableMethodItem("temp_" + $methodDeclaration.synthesized_type.getName().getName() + Integer.toString($inherited_index++),/*$methodDeclaration.synthesized_type.getArgs()*/null, $methodDeclaration.start.getLine()));
+				}catch(ItemAlreadyExistsException e2){
+
+				}
 				System.out.printf("Line:%d:Redefinition of method ‬‬%s\n", $methodDeclaration.start.getLine(), $methodDeclaration.synthesized_type.getName().getName());	
 			}
-		})* '}' {$synthesized_table = $inherited_table; $error_count = $inherited_error_count;}
+		})* '}' {$synthesized_table = $inherited_table; $error_count = $inherited_error_count; $synthesized_index = $inherited_index;}
 		
     ;
     varDeclaration returns [VarDeclaration synthesized_type]:
         'var' ID ':' type ';' 
 		{$synthesized_type = new VarDeclaration(new Identifier($ID.getText()),$type.synthesized_type);}
     ;
-    methodDeclaration[int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int error_count, SymbolTable synthesized_table,MethodDeclaration synthesized_type]:
+    methodDeclaration[int inherited_error_count, int inherited_index, SymbolTable inherited_table] returns [int synthesized_index,int error_count, SymbolTable synthesized_table,MethodDeclaration synthesized_type]:
         {$synthesized_table = new SymbolTable();}'def' name = ID {$synthesized_type = new MethodDeclaration(new Identifier($name.getText()));}
 		('(' ')' | ('(' n1 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n1.getText()),$type.synthesized_type));}
 		(',' n2 = ID ':' type {$synthesized_type.addArg(new VarDeclaration(new Identifier($n2.getText()),$type.synthesized_type));})* ')'))
@@ -170,6 +228,12 @@ grammar Smoola;
     		}
     		catch(Exception e) {
     			$inherited_error_count++;
+    			try{
+    				// print("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++));
+    				$synthesized_table.put(new SymbolTableVariableItemBase("temp_" + $varDeclaration.synthesized_type.getIdentifier().getName() + Integer.toString($inherited_index++), $varDeclaration.synthesized_type.getType(), $inherited_index++, $varDeclaration.start.getLine()));
+    			}catch(ItemAlreadyExistsException e2){
+
+    			}
     			System.out.printf("Line:%d:Redefinition of variable ‬‬%s\n", $varDeclaration.start.getLine(), $varDeclaration.synthesized_type.getIdentifier().getName());	
     		}
 		}
@@ -186,7 +250,7 @@ grammar Smoola;
 			$synthesized_type.setReturnValue($expression.synthesized_type);
 			$synthesized_table.pop();
 		} ';' '}'
-		{$error_count = $inherited_error_count;}
+		{$error_count = $inherited_error_count; $synthesized_index = $inherited_index;}
     ;
     statements returns [ArrayList<Statement> synthesized_type,int error_count]:
 		{
